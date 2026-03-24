@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F2F2F7">
+<title>Notes</title>
+<style>
+  :root {
+    --yellow: #FFD60A;
+    --bg: #F2F2F7;
+    --card: #FFFFFF;
+    --card2: #F9F9F9;
+    --text-primary: #1C1C1E;
+    --text-secondary: #8E8E93;
+    --text-tertiary: #AEAEB2;
+    --separator: #C6C6C8;
+    --blue: #007AFF;
+    --red: #FF3B30;
+    --orange: #FF9500;
+    --green: #34C759;
+    --purple: #AF52DE;
+    --teal: #5AC8FA;
+    --pink: #FF2D55;
+    --indigo: #5856D6;
+    --toolbar-bg: rgba(242,242,247,0.92);
+    --folder-bg: #FFFFFF;
+    --nav-bg: rgba(242,242,247,0.95);
+    --shadow: 0 2px 10px rgba(0,0,0,0.08);
+    --radius: 12px;
+    --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000;
+      --card: #1C1C1E;
+      --card2: #2C2C2E;
+      --text-primary: #FFFFFF;
+      --text-secondary: #8E8E93;
+      --text-tertiary: #636366;
+      --separator: #38383A;
+      --toolbar-bg: rgba(28,28,30,0.92);
+      --folder-bg: #1C1C1E;
+      --nav-bg: rgba(0,0,0,0.95);
+      --shadow: 0 2px 10px rgba(0,0,0,0.4);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); font-family: var(--font); color: var(--text-primary); }
+  #app { height: 100%; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+
+  /* ===== VIEWS ===== */
+  .view { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.32s cubic-bezier(0.32,0,0.24,1); z-index: 1; }
+  .view.active { transform: translateX(0); z-index: 2; }
+  .view.base { transform: translateX(0); z-index: 1; }
+  .view.slide-left { transform: translateX(-30%); }
+
+  /* ===== NAV BAR ===== */
+  .nav-bar {
+    background: var(--nav-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 0.5px solid var(--separator);
+    padding: 0 16px;
+    padding-top: max(env(safe-area-inset-top), 44px);
+    flex-shrink: 0;
+    min-height: calc(44px + max(env(safe-area-inset-top), 44px));
+    display: flex; align-items: flex-end; padding-bottom: 8px;
+    position: relative;
+  }
+  .nav-title { font-family: var(--font-display); font-size: 34px; font-weight: 700; flex: 1; letter-spacing: -0.5px; }
+  .nav-title.small { font-size: 17px; font-weight: 600; text-align: center; flex: 1; }
+  .nav-btn { background: none; border: none; color: var(--blue); font-size: 17px; cursor: pointer; padding: 4px 8px; font-family: var(--font); min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
+  .nav-btn:active { background: rgba(0,122,255,0.1); }
+  .nav-btn svg { width: 22px; height: 22px; }
+  .nav-back { color: var(--blue); font-size: 17px; display: flex; align-items: center; gap: 2px; }
+
+  /* ===== SCROLL AREA ===== */
+  .scroll-area { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+  .scroll-area::-webkit-scrollbar { width: 0; }
+
+  /* ===== FOLDERS VIEW ===== */
+  #folders-view .large-title { font-family: var(--font-display); font-size: 34px; font-weight: 700; padding: 8px 20px 0; letter-spacing: -0.5px; }
+  .section-header { font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px; padding: 20px 20px 6px; }
+  .folder-list { background: var(--card); border-radius: var(--radius); margin: 0 16px 20px; overflow: hidden; box-shadow: var(--shadow); }
+  .folder-item { display: flex; align-items: center; padding: 12px 16px; min-height: 52px; position: relative; cursor: pointer; }
+  .folder-item:not(:last-child)::after { content: ''; position: absolute; bottom: 0; left: 56px; right: 0; height: 0.5px; background: var(--separator); }
+  .folder-item:active { background: var(--card2); }
+  .folder-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 14px; flex-shrink: 0; }
+  .folder-icon svg { width: 20px; height: 20px; }
+  .folder-name { flex: 1; font-size: 17px; }
+  .folder-count { color: var(--text-secondary); font-size: 17px; margin-right: 6px; }
+  .folder-chevron { color: var(--text-tertiary); }
+  .folder-chevron svg { width: 16px; height: 16px; }
+
+  /* ===== SEARCH BAR ===== */
+  .search-wrap { padding: 8px 16px 12px; }
+  .search-bar { background: var(--card2); border-radius: 12px; display: flex; align-items: center; padding: 8px 12px; gap: 8px; border: 1px solid transparent; transition: border-color 0.2s, background 0.2s; }
+  .search-bar.focused { border-color: var(--blue); background: var(--card); }
+  .search-bar svg { color: var(--text-tertiary); flex-shrink: 0; width: 16px; height: 16px; }
+  .search-bar input { background: none; border: none; outline: none; font-size: 17px; color: var(--text-primary); flex: 1; font-family: var(--font); }
+  .search-bar input::placeholder { color: var(--text-tertiary); }
+  .search-cancel { color: var(--blue); font-size: 17px; cursor: pointer; padding: 4px; white-space: nowrap; display: none; }
+  .search-bar.focused ~ .search-cancel, .search-wrap.searching .search-cancel { display: block; }
+
+  /* ===== NOTES LIST VIEW ===== */
+  .notes-list { background: var(--card); border-radius: var(--radius); margin: 0 16px 20px; overflow: hidden; box-shadow: var(--shadow); }
+  .note-item { display: flex; align-items: flex-start; padding: 14px 16px; min-height: 72px; position: relative; cursor: pointer; transition: background 0.15s; }
+  .note-item:not(:last-child)::after { content: ''; position: absolute; bottom: 0; left: 16px; right: 0; height: 0.5px; background: var(--separator); }
+  .note-item:active { background: var(--card2); }
+  .note-item.pinned-item { }
+  .note-pin-icon { position: absolute; top: 14px; right: 14px; color: var(--orange); }
+  .note-pin-icon svg { width: 14px; height: 14px; }
+  .note-content { flex: 1; min-width: 0; }
+  .note-title { font-size: 17px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+  .note-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+  .note-date { font-size: 13px; color: var(--text-secondary); }
+  .note-preview { font-size: 15px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .note-folder-tag { font-size: 11px; background: var(--blue); color: #fff; border-radius: 4px; padding: 1px 5px; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state h3 { font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+
+  /* Swipe actions */
+  .swipe-container { position: relative; overflow: hidden; }
+  .swipe-actions { position: absolute; right: 0; top: 0; bottom: 0; display: flex; align-items: stretch; }
+  .swipe-action { display: flex; align-items: center; justify-content: center; padding: 0 18px; cursor: pointer; font-size: 13px; font-weight: 500; color: #fff; flex-direction: column; gap: 3px; min-width: 72px; }
+  .swipe-action svg { width: 20px; height: 20px; }
+  .swipe-pin { background: var(--orange); }
+  .swipe-delete { background: var(--red); }
+  .swipe-move { background: var(--blue); }
+
+  /* Section labels */
+  .list-section-header { font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px; padding: 12px 20px 4px; }
+
+  /* ===== EDITOR VIEW ===== */
+  #editor-view { background: var(--card); }
+  #editor-view .nav-bar { background: var(--toolbar-bg); border-bottom: 0.5px solid var(--separator); }
+  .editor-toolbar { background: var(--toolbar-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 0.5px solid var(--separator); padding: 8px 12px; padding-bottom: calc(8px + var(--safe-bottom)); display: flex; align-items: center; gap: 2px; flex-shrink: 0; overflow-x: auto; }
+  .editor-toolbar::-webkit-scrollbar { height: 0; }
+  .tool-btn { background: none; border: none; color: var(--text-primary); cursor: pointer; padding: 6px 8px; border-radius: 8px; font-size: 15px; min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .tool-btn:active, .tool-btn.active { background: var(--card2); }
+  .tool-btn svg { width: 20px; height: 20px; }
+  .tool-separator { width: 0.5px; height: 24px; background: var(--separator); margin: 0 4px; flex-shrink: 0; }
+  #note-editor { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding: 16px 20px; padding-bottom: 24px; outline: none; font-size: 17px; line-height: 1.6; color: var(--text-primary); background: var(--card); font-family: var(--font); caret-color: var(--blue); }
+  #note-editor:empty::before { content: 'Note'; color: var(--text-tertiary); pointer-events: none; }
+  #note-editor h1 { font-size: 28px; font-weight: 700; line-height: 1.3; margin-bottom: 8px; font-family: var(--font-display); }
+  #note-editor h2 { font-size: 22px; font-weight: 600; line-height: 1.4; margin-bottom: 6px; }
+  #note-editor h3 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  #note-editor ul, #note-editor ol { padding-left: 24px; margin-bottom: 8px; }
+  #note-editor li { margin-bottom: 2px; }
+  #note-editor blockquote { border-left: 3px solid var(--blue); padding-left: 12px; margin: 8px 0; color: var(--text-secondary); font-style: italic; }
+  #note-editor code { background: var(--card2); border-radius: 4px; padding: 1px 5px; font-family: 'Menlo', 'SF Mono', monospace; font-size: 15px; }
+  #note-editor pre { background: var(--card2); border-radius: 8px; padding: 12px; overflow-x: auto; margin: 8px 0; }
+  #note-editor pre code { background: none; padding: 0; }
+  #note-editor a { color: var(--blue); text-decoration: underline; }
+  #note-editor table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+  #note-editor th, #note-editor td { border: 1px solid var(--separator); padding: 8px 12px; text-align: left; font-size: 15px; }
+  #note-editor th { background: var(--card2); font-weight: 600; }
+  .checklist-item { display: flex; align-items: flex-start; gap: 10px; padding: 2px 0; }
+  .checklist-item input[type=checkbox] { appearance: none; -webkit-appearance: none; width: 22px; height: 22px; border: 2px solid var(--separator); border-radius: 50%; flex-shrink: 0; margin-top: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .checklist-item input[type=checkbox]:checked { background: var(--green); border-color: var(--green); }
+  .checklist-item input[type=checkbox]:checked::after { content: '✓'; color: #fff; font-size: 13px; font-weight: 700; }
+  .checklist-item .item-text { flex: 1; outline: none; font-size: 17px; line-height: 1.5; min-height: 24px; color: var(--text-primary); font-family: var(--font); }
+  .checklist-item.done .item-text { text-decoration: line-through; color: var(--text-secondary); }
+  .editor-word-count { text-align: center; font-size: 13px; color: var(--text-tertiary); padding: 4px 0; }
+
+  /* ===== MODALS ===== */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+  .modal-overlay.visible { opacity: 1; pointer-events: all; }
+  .modal-sheet { background: var(--card); border-radius: 16px 16px 0 0; width: 100%; max-height: 75vh; overflow-y: auto; padding-bottom: calc(24px + var(--safe-bottom)); transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.32,0,0.24,1); }
+  .modal-overlay.visible .modal-sheet { transform: translateY(0); }
+  .modal-handle { width: 36px; height: 4px; background: var(--text-tertiary); border-radius: 2px; margin: 10px auto 16px; }
+  .modal-title { font-size: 17px; font-weight: 600; text-align: center; margin-bottom: 16px; padding: 0 16px; }
+  .modal-actions { display: flex; flex-direction: column; gap: 0; background: var(--card); border-radius: 14px; margin: 0 16px 12px; overflow: hidden; }
+  .modal-action { display: flex; align-items: center; padding: 14px 16px; gap: 12px; cursor: pointer; min-height: 54px; position: relative; font-size: 17px; transition: background 0.15s; }
+  .modal-action:not(:last-child)::after { content: ''; position: absolute; bottom: 0; left: 44px; right: 0; height: 0.5px; background: var(--separator); }
+  .modal-action:active { background: var(--card2); }
+  .modal-action .action-icon { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .modal-action .action-icon svg { width: 16px; height: 16px; }
+  .modal-action span { flex: 1; }
+  .modal-action.destructive { color: var(--red); }
+  .modal-cancel { background: var(--card); border-radius: 14px; margin: 0 16px; overflow: hidden; }
+  .modal-cancel .modal-action { justify-content: center; font-weight: 600; color: var(--blue); }
+
+  /* ===== ALERT DIALOG ===== */
+  .alert-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.25s; padding: 20px; }
+  .alert-overlay.visible { opacity: 1; pointer-events: all; }
+  .alert-box { background: var(--card); border-radius: 14px; width: 100%; max-width: 320px; overflow: hidden; transform: scale(0.9); transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+  .alert-overlay.visible .alert-box { transform: scale(1); }
+  .alert-content { padding: 20px 16px 12px; text-align: center; }
+  .alert-title { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+  .alert-message { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+  .alert-actions { display: flex; border-top: 0.5px solid var(--separator); }
+  .alert-btn { flex: 1; padding: 14px; font-size: 17px; cursor: pointer; background: none; border: none; font-family: var(--font); color: var(--blue); }
+  .alert-btn:not(:last-child) { border-right: 0.5px solid var(--separator); }
+  .alert-btn.destructive { color: var(--red); }
+  .alert-btn.cancel { }
+
+  /* ===== TOAST ===== */
+  .toast { position: fixed; bottom: calc(80px + var(--safe-bottom)); left: 50%; transform: translateX(-50%) translateY(20px); background: rgba(40,40,40,0.95); color: #fff; padding: 10px 20px; border-radius: 24px; font-size: 15px; white-space: nowrap; z-index: 1000; opacity: 0; transition: all 0.3s; pointer-events: none; backdrop-filter: blur(10px); }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ===== FOLDER MANAGER ===== */
+  .new-folder-input { background: var(--card2); border: 1px solid var(--separator); border-radius: 10px; padding: 12px 16px; font-size: 17px; width: calc(100% - 32px); margin: 0 16px; color: var(--text-primary); font-family: var(--font); outline: none; }
+  .new-folder-input:focus { border-color: var(--blue); }
+
+  /* ===== TAGS ===== */
+  .tags-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+  .tag-chip { background: var(--card2); border-radius: 20px; padding: 6px 14px; font-size: 15px; cursor: pointer; border: 1.5px solid transparent; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .tag-chip.selected { background: rgba(0,122,255,0.15); border-color: var(--blue); color: var(--blue); }
+  .tag-chip:active { background: var(--card2); opacity: 0.7; }
+
+  /* ===== BOTTOM TAB BAR ===== */
+  .tab-bar { background: var(--toolbar-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 0.5px solid var(--separator); display: flex; align-items: center; padding: 8px 0; padding-bottom: calc(8px + var(--safe-bottom)); flex-shrink: 0; }
+  .tab-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; border: none; cursor: pointer; padding: 4px; }
+  .tab-btn svg { width: 24px; height: 24px; color: var(--text-secondary); }
+  .tab-btn.active svg { color: var(--yellow); }
+  .tab-btn span { font-size: 10px; color: var(--text-secondary); }
+  .tab-btn.active span { color: var(--yellow); }
+
+  /* Note count badge */
+  .new-note-fab { position: fixed; bottom: calc(72px + var(--safe-bottom)); right: 20px; width: 52px; height: 52px; border-radius: 50%; background: var(--yellow); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(255,214,10,0.4); cursor: pointer; z-index: 50; border: none; transition: transform 0.15s; }
+  .new-note-fab:active { transform: scale(0.93); }
+  .new-note-fab svg { width: 26px; height: 26px; color: #000; }
+
+  /* ===== COLOR PICKER ===== */
+  .color-picker-row { display: flex; gap: 12px; padding: 12px 16px; flex-wrap: wrap; justify-content: center; }
+  .color-dot { width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; border: 2.5px solid transparent; transition: transform 0.15s; flex-shrink: 0; }
+  .color-dot:active { transform: scale(0.9); }
+  .color-dot.selected { border-color: var(--blue); }
+  .color-dot svg { width: 18px; height: 18px; color: #fff; }
+
+  /* ===== LOCK / PIN ===== */
+  .lock-screen { position: fixed; inset: 0; background: var(--bg); z-index: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+  .lock-icon { font-size: 64px; }
+  .lock-title { font-size: 22px; font-weight: 600; }
+  .lock-pin-row { display: flex; gap: 12px; margin: 8px 0; }
+  .lock-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--text-primary); transition: background 0.2s; }
+  .lock-dot.filled { background: var(--text-primary); }
+  .lock-numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 280px; }
+  .num-btn { background: var(--card); border: none; border-radius: 50%; width: 76px; height: 76px; font-size: 28px; cursor: pointer; font-family: var(--font-display); color: var(--text-primary); display: flex; align-items: center; justify-content: center; transition: background 0.1s; box-shadow: var(--shadow); }
+  .num-btn:active { background: var(--card2); }
+  .num-btn.delete { font-size: 22px; }
+
+  /* ===== ATTACHMENT AREA ===== */
+  .attachment-grid { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0; }
+  .attachment-thumb { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; cursor: pointer; }
+  .attachment-doc { background: var(--card2); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: 13px; max-width: 200px; cursor: pointer; }
+
+  /* ===== EDITOR FORMAT POPOVER ===== */
+  .format-popover { position: fixed; background: var(--card); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.25); padding: 8px; display: flex; gap: 4px; z-index: 300; opacity: 0; pointer-events: none; transform: translateY(8px); transition: opacity 0.2s, transform 0.2s; flex-wrap: wrap; max-width: 280px; }
+  .format-popover.visible { opacity: 1; pointer-events: all; transform: translateY(0); }
+
+  /* ===== FONT SIZE BUTTONS ===== */
+  .Aa-btn { font-size: 16px; font-weight: 600; }
+  
+  /* ===== PHOTO ATTACHMENT ===== */
+  #file-input { display: none; }
+
+  /* Stagger animations */
+  .note-item { animation: fadeUp 0.25s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Highlight search */
+  .highlight { background: rgba(255,214,10,0.5); border-radius: 2px; }
+
+  /* ===== SETTINGS VIEW ===== */
+  .settings-row { display: flex; align-items: center; padding: 14px 16px; min-height: 52px; gap: 14px; }
+  .settings-row:not(:last-child) { border-bottom: 0.5px solid var(--separator); }
+  .settings-label { flex: 1; font-size: 17px; }
+  .settings-value { color: var(--text-secondary); font-size: 17px; }
+  .toggle { width: 51px; height: 31px; border-radius: 20px; background: var(--separator); position: relative; cursor: pointer; transition: background 0.3s; flex-shrink: 0; }
+  .toggle.on { background: var(--green); }
+  .toggle::after { content: ''; position: absolute; width: 27px; height: 27px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left 0.3s; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+  .toggle.on::after { left: 22px; }
+
+  /* Locked note overlay */
+  .locked-overlay { position: absolute; inset: 0; background: var(--card); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; z-index: 5; }
+  .locked-overlay svg { width: 48px; height: 48px; color: var(--text-secondary); }
+  .locked-overlay p { font-size: 15px; color: var(--text-secondary); }
+  .locked-overlay button { background: var(--blue); color: #fff; border: none; border-radius: 10px; padding: 10px 24px; font-size: 17px; cursor: pointer; font-family: var(--font); }
+
+  /* Sort menu */
+  .sort-menu { position: absolute; top: 100%; right: 12px; background: var(--card); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); overflow: hidden; z-index: 50; min-width: 180px; }
+  .sort-option { padding: 14px 16px; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+  .sort-option:not(:last-child) { border-bottom: 0.5px solid var(--separator); }
+  .sort-option:active { background: var(--card2); }
+  .sort-option.active::after { content: '✓'; color: var(--blue); font-weight: 600; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- FOLDERS / HOME VIEW -->
+  <div id="folders-view" class="view base">
+    <div class="nav-bar">
+      <span class="nav-title" id="folders-nav-title">Notes</span>
+      <button class="nav-btn" onclick="openSettings()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      </button>
+    </div>
+    <div class="scroll-area">
+      <div class="search-wrap" id="folder-search-wrap">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="search-bar" id="folder-search-bar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" placeholder="Search" id="global-search-input" oninput="handleGlobalSearch(this.value)" onfocus="searchFocused()" onblur="searchBlurred()" autocomplete="off">
+          </div>
+          <span class="search-cancel" id="search-cancel-btn" onclick="cancelSearch()" style="display:none">Cancel</span>
+        </div>
+      </div>
+
+      <!-- Search results (hidden by default) -->
+      <div id="search-results-section" style="display:none">
+        <div class="list-section-header">Results</div>
+        <div class="notes-list" id="search-results-list"></div>
+      </div>
+
+      <!-- Normal content -->
+      <div id="folders-content">
+        <div class="section-header">iCloud</div>
+        <div class="folder-list" id="folders-list"></div>
+
+        <div class="section-header">Tags</div>
+        <div class="tags-row" id="tags-row"></div>
+
+        <div class="section-header" id="recents-label">Recents</div>
+        <div class="notes-list" id="recents-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTES LIST VIEW -->
+  <div id="notes-view" class="view">
+    <div class="nav-bar" style="justify-content:space-between">
+      <button class="nav-btn nav-back" onclick="goBack('notes-view')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+        Notes
+      </button>
+      <span class="nav-title small" id="notes-view-title">All Notes</span>
+      <div style="display:flex;align-items:center;gap:0;position:relative">
+        <button class="nav-btn" onclick="toggleSortMenu()" id="sort-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
+        </button>
+        <div class="sort-menu" id="sort-menu" style="display:none">
+          <div class="sort-option active" id="sort-date-edit" onclick="setSortMode('date-edit')">Date Edited</div>
+          <div class="sort-option" id="sort-date-create" onclick="setSortMode('date-create')">Date Created</div>
+          <div class="sort-option" id="sort-title" onclick="setSortMode('title')">Title</div>
+        </div>
+        <button class="nav-btn" onclick="openNewNote()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="scroll-area">
+      <div class="search-wrap">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="search-bar" id="notes-search-bar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" placeholder="Search" id="notes-search-input" oninput="handleNotesSearch(this.value)" autocomplete="off">
+          </div>
+        </div>
+      </div>
+      <div id="notes-list-content"></div>
+    </div>
+    <div class="tab-bar">
+      <div style="flex:1;display:flex;justify-content:flex-start;padding-left:16px">
+        <span style="font-size:13px;color:var(--text-secondary)" id="notes-count-label"></span>
+      </div>
+      <button class="new-note-fab-inline" onclick="openNewNote()" style="background:none;border:none;cursor:pointer;color:var(--yellow);display:flex;align-items:center;gap:4px;padding:8px 16px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="28" height="28"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- EDITOR VIEW -->
+  <div id="editor-view" class="view">
+    <div class="nav-bar" style="justify-content:space-between">
+      <button class="nav-btn nav-back" id="editor-back-btn" onclick="saveAndGoBack()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+        <span id="editor-back-label">Notes</span>
+      </button>
+      <div style="display:flex;align-items:center;gap:0">
+        <button class="nav-btn" onclick="shareNote()" title="Share">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        </button>
+        <button class="nav-btn" onclick="openNoteOptions()" title="More">
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="note-editor" contenteditable="true" spellcheck="true" onkeyup="debounceSave()" oninput="debounceSave(); updateWordCount();" onpaste="handlePaste(event)"></div>
+    <div class="editor-toolbar" id="editor-toolbar">
+      <!-- Formatting row -->
+      <button class="tool-btn Aa-btn" onclick="toggleFormatPanel()" title="Text format">Aa</button>
+      <div class="tool-separator"></div>
+      <button class="tool-btn" onclick="execFmt('bold')" title="Bold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg></button>
+      <button class="tool-btn" onclick="execFmt('italic')" title="Italic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg></button>
+      <button class="tool-btn" onclick="execFmt('underline')" title="Underline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg></button>
+      <button class="tool-btn" onclick="execFmt('strikeThrough')" title="Strikethrough"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.3 4.9c-2.3-.6-4.4-1-6.2-.9-2.7 0-5.3.7-5.3 3.6 0 1.5 1.1 2.5 3.1 3.2L10 12"/><path d="m4 12 16 0"/><path d="M6.7 19.1c2.3.6 4.4 1 6.2.9 2.7 0 5.3-.7 5.3-3.6 0-1.5-1.1-2.5-3.1-3.2L14 12"/></svg></button>
+      <div class="tool-separator"></div>
+      <button class="tool-btn" onclick="insertChecklist()" title="Checklist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
+      <button class="tool-btn" onclick="execFmt('insertUnorderedList')" title="Bullet list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg></button>
+      <button class="tool-btn" onclick="execFmt('insertOrderedList')" title="Numbered list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4" stroke="currentColor" stroke-width="1.5"/><path d="M4 10h2" stroke="currentColor" stroke-width="1.5"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" stroke="currentColor" stroke-width="1.5"/></svg></button>
+      <div class="tool-separator"></div>
+      <button class="tool-btn" onclick="openAttachPicker()" title="Attach photo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      </button>
+      <button class="tool-btn" onclick="insertTable()" title="Table">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+      </button>
+      <div class="tool-separator"></div>
+      <button class="tool-btn" onclick="document.execCommand('undo')" title="Undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>
+      <button class="tool-btn" onclick="document.execCommand('redo')" title="Redo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg></button>
+      <button class="tool-btn" onclick="toggleKeyboard()" title="Dismiss keyboard" style="margin-left:auto">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M10 13h.01M14 13h.01M18 13h.01M8 17h8"/></svg>
+      </button>
+    </div>
+    <!-- Format Panel (slide up) -->
+    <div id="format-panel" style="display:none;background:var(--card);border-top:0.5px solid var(--separator);padding:12px 16px;flex-shrink:0">
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button onclick="setHeading('h1')" style="background:var(--card2);border:1px solid var(--separator);border-radius:8px;padding:8px 14px;font-size:20px;font-weight:700;cursor:pointer;color:var(--text-primary);font-family:var(--font-display)">Title</button>
+        <button onclick="setHeading('h2')" style="background:var(--card2);border:1px solid var(--separator);border-radius:8px;padding:8px 14px;font-size:17px;font-weight:600;cursor:pointer;color:var(--text-primary)">Heading</button>
+        <button onclick="setHeading('h3')" style="background:var(--card2);border:1px solid var(--separator);border-radius:8px;padding:8px 14px;font-size:15px;font-weight:600;cursor:pointer;color:var(--text-primary)">Subheading</button>
+        <button onclick="setHeading('p')" style="background:var(--card2);border:1px solid var(--separator);border-radius:8px;padding:8px 14px;font-size:15px;cursor:pointer;color:var(--text-primary)">Body</button>
+        <button onclick="setHeading('blockquote')" style="background:var(--card2);border:1px solid var(--separator);border-radius:8px;padding:8px 14px;font-size:15px;cursor:pointer;color:var(--blue);font-style:italic">Quote</button>
+        <button onclick="execFmt('formatBlock','pre')" style="background:var(--card2);border:1px solid var(--separator);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;color:var(--text-primary);font-family:monospace">Code</button>
+      </div>
+    </div>
+    <div class="editor-word-count" id="word-count-label"></div>
+    <!-- Locked overlay -->
+    <div class="locked-overlay" id="locked-overlay" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <p>This note is locked</p>
+      <button onclick="unlockCurrentNote()">View Note</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS VIEW -->
+  <div id="settings-view" class="view">
+    <div class="nav-bar" style="justify-content:space-between">
+      <button class="nav-btn nav-back" onclick="goBack('settings-view')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+        Notes
+      </button>
+      <span class="nav-title small">Settings</span>
+      <div style="width:80px"></div>
+    </div>
+    <div class="scroll-area">
+      <div class="section-header">General</div>
+      <div class="folder-list">
+        <div class="settings-row">
+          <span class="settings-label">Default Font</span>
+          <select id="font-select" onchange="changeFontSetting(this.value)" style="background:none;border:none;color:var(--blue);font-size:17px;font-family:var(--font);outline:none;cursor:pointer">
+            <option value="default">San Francisco</option>
+            <option value="georgia">Georgia</option>
+            <option value="menlo">Menlo (Mono)</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">Sort Notes By</span>
+          <select id="sort-select" onchange="setSortMode(this.value)" style="background:none;border:none;color:var(--blue);font-size:17px;font-family:var(--font);outline:none;cursor:pointer">
+            <option value="date-edit">Date Edited</option>
+            <option value="date-create">Date Created</option>
+            <option value="title">Title</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">Group By Date</span>
+          <div class="toggle on" id="group-toggle" onclick="toggleSetting('group')"></div>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">Show Note Preview</span>
+          <div class="toggle on" id="preview-toggle" onclick="toggleSetting('preview')"></div>
+        </div>
+      </div>
+      <div class="section-header">Security</div>
+      <div class="folder-list">
+        <div class="settings-row" onclick="openSetPassword()" style="cursor:pointer">
+          <span class="settings-label">Set Password</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" width="16" height="16"><path d="m9 18 6-6-6-6"/></svg>
+        </div>
+      </div>
+      <div class="section-header">About</div>
+      <div class="folder-list">
+        <div class="settings-row">
+          <span class="settings-label">Version</span>
+          <span class="settings-value">1.0.0</span>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">Total Notes</span>
+          <span class="settings-value" id="total-notes-count">0</span>
+        </div>
+      </div>
+      <div class="section-header">Danger Zone</div>
+      <div class="folder-list">
+        <div class="settings-row" onclick="confirmDeleteAll()" style="cursor:pointer">
+          <span class="settings-label" style="color:var(--red)">Delete All Notes</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALS -->
+  <div class="modal-overlay" id="note-options-modal">
+    <div class="modal-sheet" id="note-options-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="note-options-title">Note Options</div>
+      <div class="modal-actions" id="note-options-actions"></div>
+      <div class="modal-cancel"><div class="modal-action" onclick="closeModal('note-options-modal')"><span>Cancel</span></div></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="folder-pick-modal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Move to Folder</div>
+      <div class="modal-actions" id="folder-pick-list"></div>
+      <div class="modal-cancel"><div class="modal-action" onclick="closeModal('folder-pick-modal')"><span>Cancel</span></div></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="new-folder-modal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">New Folder</div>
+      <input type="text" class="new-folder-input" id="new-folder-input" placeholder="Folder Name" maxlength="30">
+      <div style="height:16px"></div>
+      <div class="modal-actions">
+        <div class="modal-action" onclick="confirmNewFolder()"><span style="color:var(--blue);font-weight:600">Create</span></div>
+      </div>
+      <div class="modal-cancel"><div class="modal-action" onclick="closeModal('new-folder-modal')"><span>Cancel</span></div></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="tag-modal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Add Tag</div>
+      <input type="text" class="new-folder-input" id="tag-input" placeholder="Tag name" maxlength="20" oninput="this.value = this.value.replace(/\s/g,'')">
+      <div style="height:16px"></div>
+      <div class="modal-actions">
+        <div class="modal-action" onclick="confirmAddTag()"><span style="color:var(--blue);font-weight:600">Add</span></div>
+      </div>
+      <div class="modal-cancel"><div class="modal-action" onclick="closeModal('tag-modal')"><span>Cancel</span></div></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="color-modal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Note Color</div>
+      <div class="color-picker-row" id="color-picker-row"></div>
+      <div style="height:8px"></div>
+      <div class="modal-cancel"><div class="modal-action" onclick="closeModal('color-modal')"><span>Cancel</span></div></div>
+    </div>
+  </div>
+
+  <!-- ALERT -->
+  <div class="alert-overlay" id="alert-overlay">
+    <div class="alert-box">
+      <div class="alert-content">
+        <div class="alert-title" id="alert-title"></div>
+        <div class="alert-message" id="alert-message"></div>
+      </div>
+      <div class="alert-actions" id="alert-actions"></div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <!-- File input for attachments -->
+  <input type="file" id="file-input" accept="image/*" onchange="handleFileAttach(event)">
+</div>
+
+<script>
+// =============================================
+// STATE
+// =============================================
+let db = {
+  notes: [],
+  folders: ['All iCloud', 'Notes', 'Flagged', 'Recently Deleted'],
+  customFolders: [],
+  tags: [],
+  settings: {
+    sortMode: 'date-edit',
+    groupByDate: true,
+    showPreview: true,
+    font: 'default',
+    password: null
+  }
+};
+
+let currentFolder = 'Notes';
+let currentNoteId = null;
+let saveTimer = null;
+let isSearching = false;
+let swipeStartX = 0;
+let swipeStartY = 0;
+let activeSwipeEl = null;
+let formatPanelOpen = false;
+
+// =============================================
+// PERSISTENCE
+// =============================================
+function save() {
+  try { localStorage.setItem('notes_db', JSON.stringify(db)); } catch(e) {}
+}
+function load() {
+  try {
+    const raw = localStorage.getItem('notes_db');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      db = { ...db, ...parsed };
+      // Ensure default folders always exist
+      const defaults = ['All iCloud', 'Notes', 'Flagged', 'Recently Deleted'];
+      defaults.forEach(f => { if (!db.folders.includes(f)) db.folders.push(f); });
+    }
+  } catch(e) {}
+}
+
+// =============================================
+// NAVIGATION
+// =============================================
+function showView(id) {
+  // Slide current visible view left
+  document.querySelectorAll('.view.active').forEach(v => {
+    v.classList.remove('active');
+    v.classList.add('slide-left');
+    setTimeout(() => v.classList.remove('slide-left'), 400);
+  });
+  const v = document.getElementById(id);
+  v.classList.add('active');
+  setTimeout(() => v.classList.remove('base'), 10);
+}
+
+function goBack(viewId) {
+  const v = document.getElementById(viewId);
+  v.classList.remove('active');
+  setTimeout(() => {}, 350);
+}
+
+// =============================================
+// FOLDER RENDERING
+// =============================================
+function renderFolders() {
+  const list = document.getElementById('folders-list');
+  const allFolders = ['Notes', ...db.customFolders, 'Flagged', 'Recently Deleted'];
+  const counts = {};
+  allFolders.forEach(f => {
+    counts[f] = db.notes.filter(n => {
+      if (f === 'Notes') return !n.deleted && !n.flagged && !db.customFolders.includes(n.folder) && n.folder !== 'Flagged';
+      if (f === 'Flagged') return n.flagged && !n.deleted;
+      if (f === 'Recently Deleted') return n.deleted;
+      return n.folder === f && !n.deleted;
+    }).length;
+  });
+
+  const icons = {
+    'Notes': `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
+    'Flagged': `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>`,
+    'Recently Deleted': `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`,
+  };
+  const colors = {
+    'Notes': '#FFD60A',
+    'Flagged': '#FF9500',
+    'Recently Deleted': '#FF3B30',
+  };
+
+  list.innerHTML = allFolders.map(f => `
+    <div class="folder-item swipe-container" onclick="openFolder('${f}')">
+      <div class="folder-icon" style="background:${colors[f] || '#5856D6'}">
+        ${icons[f] || `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`}
+      </div>
+      <span class="folder-name">${f}</span>
+      <span class="folder-count">${counts[f] || ''}</span>
+      <span class="folder-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg></span>
+    </div>
+  `).join('') + `
+    <div class="folder-item" onclick="openNewFolderModal()" style="color:var(--blue)">
+      <div class="folder-icon" style="background:var(--blue)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </div>
+      <span class="folder-name">New Folder</span>
+    </div>
+  `;
+
+  renderTags();
+  renderRecents();
+  document.getElementById('total-notes-count').textContent = db.notes.filter(n=>!n.deleted).length;
+}
+
+function renderTags() {
+  const row = document.getElementById('tags-row');
+  if (!db.tags.length) { row.innerHTML = `<div style="color:var(--text-tertiary);font-size:15px;padding:4px 0">No tags yet</div>`; return; }
+  row.innerHTML = db.tags.map(t => `
+    <div class="tag-chip" onclick="openTagNotes('${t}')">#${t}</div>
+  `).join('') + `<div class="tag-chip" onclick="openTagModal()" style="color:var(--blue)">+ Add Tag</div>`;
+}
+
+function renderRecents() {
+  const list = document.getElementById('recents-list');
+  const recents = db.notes.filter(n=>!n.deleted).sort((a,b)=>b.modified-a.modified).slice(0,5);
+  if (!recents.length) { list.innerHTML = '<div class="empty-state"><p>No notes yet</p></div>'; return; }
+  list.innerHTML = recents.map(n => buildNoteItem(n, true)).join('');
+  addSwipeListeners(list);
+}
+
+// =============================================
+// FOLDER OPEN
+// =============================================
+function openFolder(folder) {
+  currentFolder = folder;
+  document.getElementById('notes-view-title').textContent = folder;
+  renderNotesList();
+  showView('notes-view');
+}
+
+function openTagNotes(tag) {
+  currentFolder = '__tag__' + tag;
+  document.getElementById('notes-view-title').textContent = '#' + tag;
+  renderNotesList();
+  showView('notes-view');
+}
+
+// =============================================
+// NOTES LIST RENDERING
+// =============================================
+function getNotesForFolder(folder) {
+  if (folder.startsWith('__tag__')) {
+    const tag = folder.replace('__tag__','');
+    return db.notes.filter(n => !n.deleted && n.tags && n.tags.includes(tag));
+  }
+  if (folder === 'Notes') return db.notes.filter(n => !n.deleted && !n.flagged && !db.customFolders.includes(n.folder));
+  if (folder === 'Flagged') return db.notes.filter(n => n.flagged && !n.deleted);
+  if (folder === 'Recently Deleted') return db.notes.filter(n => n.deleted);
+  return db.notes.filter(n => n.folder === folder && !n.deleted);
+}
+
+function sortNotes(notes) {
+  const m = db.settings.sortMode;
+  if (m === 'date-edit') return [...notes].sort((a,b) => b.modified - a.modified);
+  if (m === 'date-create') return [...notes].sort((a,b) => b.created - a.created);
+  if (m === 'title') return [...notes].sort((a,b) => (a.title||'Untitled').localeCompare(b.title||'Untitled'));
+  return notes;
+}
+
+function renderNotesList(searchQuery) {
+  const container = document.getElementById('notes-list-content');
+  let notes = getNotesForFolder(currentFolder);
+  if (searchQuery) notes = notes.filter(n => noteMatchesSearch(n, searchQuery));
+  const pinned = notes.filter(n => n.pinned);
+  const unpinned = notes.filter(n => !n.pinned);
+  const sortedUnpinned = sortNotes(unpinned);
+  const sortedPinned = sortNotes(pinned);
+  document.getElementById('notes-count-label').textContent = notes.length + (notes.length===1?' note':' notes');
+
+  if (!notes.length) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">📝</div><h3>No Notes</h3><p>Tap the compose button to create a new note.</p></div>`;
+    return;
+  }
+
+  let html = '';
+  if (sortedPinned.length) {
+    html += `<div class="list-section-header">Pinned</div><div class="notes-list">` + sortedPinned.map(n=>buildNoteItem(n)).join('') + `</div>`;
+  }
+  if (db.settings.groupByDate && db.settings.sortMode === 'date-edit') {
+    const groups = groupByDate(sortedUnpinned);
+    for (const [label, items] of groups) {
+      if (items.length) html += `<div class="list-section-header">${label}</div><div class="notes-list">` + items.map(n=>buildNoteItem(n)).join('') + `</div>`;
+    }
+  } else {
+    html += `<div class="notes-list">` + sortedUnpinned.map(n=>buildNoteItem(n)).join('') + `</div>`;
+  }
+  container.innerHTML = html;
+  addSwipeListeners(container);
+}
+
+function groupByDate(notes) {
+  const now = Date.now();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+  const thisWeek = new Date(today); thisWeek.setDate(today.getDate()-7);
+  const thisMonth = new Date(today); thisMonth.setDate(1);
+  const groups = new Map([['Today',[]],['Yesterday',[]],['This Week',[]],['This Month',[]],['Older',[]]]);
+  notes.forEach(n => {
+    const d = new Date(n.modified);
+    if (d >= today) groups.get('Today').push(n);
+    else if (d >= yesterday) groups.get('Yesterday').push(n);
+    else if (d >= thisWeek) groups.get('This Week').push(n);
+    else if (d >= thisMonth) groups.get('This Month').push(n);
+    else groups.get('Older').push(n);
+  });
+  return groups;
+}
+
+function buildNoteItem(note, showFolder) {
+  const title = note.title || 'New Note';
+  const date = formatDate(note.modified);
+  const preview = db.settings.showPreview ? (note.plainText || '').replace(/\n/g,' ').substring(0,60) : '';
+  const folderTag = showFolder && note.folder ? `<span class="note-folder-tag">${note.folder}</span>` : '';
+  const pinIcon = note.pinned ? `<div class="note-pin-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div>` : '';
+  const lockIcon = note.locked ? `<span style="margin-left:4px">🔒</span>` : '';
+  const flagIcon = note.flagged ? `<span style="margin-left:4px;color:var(--orange)">⚑</span>` : '';
+  const colorDot = note.color ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${note.color};margin-right:4px;flex-shrink:0"></span>` : '';
+  return `
+    <div class="note-item ${note.pinned?'pinned-item':''}" data-id="${note.id}" onclick="openNote('${note.id}')">
+      <div class="note-content">
+        <div class="note-title">${colorDot}${escapeHtml(title)}${lockIcon}${flagIcon}</div>
+        <div class="note-meta">
+          <span class="note-date">${date}</span>
+          ${folderTag}
+        </div>
+        ${preview && !note.locked ? `<div class="note-preview">${escapeHtml(preview)}</div>` : ''}
+      </div>
+      ${pinIcon}
+    </div>
+  `;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatDate(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const yesterday = new Date(now); yesterday.setDate(now.getDate()-1);
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  if (now - d < 7*24*60*60*1000) return d.toLocaleDateString([],{weekday:'long'});
+  return d.toLocaleDateString([],{month:'short',day:'numeric',year:d.getFullYear()!==now.getFullYear()?'numeric':undefined});
+}
+
+// =============================================
+// NOTE OPENING
+// =============================================
+function openNote(id) {
+  const note = db.notes.find(n=>n.id===id);
+  if (!note) return;
+  currentNoteId = id;
+  const editor = document.getElementById('note-editor');
+  document.getElementById('editor-back-label').textContent = currentFolder.startsWith('__tag__') ? '#'+currentFolder.replace('__tag__','') : currentFolder;
+
+  if (note.locked && !note.unlocked) {
+    document.getElementById('locked-overlay').style.display = 'flex';
+    editor.innerHTML = '';
+  } else {
+    document.getElementById('locked-overlay').style.display = 'none';
+    editor.innerHTML = note.content || '';
+    applyNoteFont(note);
+  }
+  updateWordCount();
+  showView('editor-view');
+  if (!note.locked) setTimeout(()=>editor.focus(),350);
+}
+
+function applyNoteFont(note) {
+  const editor = document.getElementById('note-editor');
+  const f = db.settings.font;
+  if (f === 'georgia') editor.style.fontFamily = 'Georgia, serif';
+  else if (f === 'menlo') editor.style.fontFamily = 'Menlo, SF Mono, monospace';
+  else editor.style.fontFamily = '';
+}
+
+function openNewNote() {
+  const note = {
+    id: Date.now().toString(),
+    title: '',
+    content: '',
+    plainText: '',
+    folder: currentFolder.startsWith('__tag__') ? 'Notes' : (currentFolder === 'Flagged' || currentFolder === 'Recently Deleted' ? 'Notes' : currentFolder),
+    created: Date.now(),
+    modified: Date.now(),
+    pinned: false,
+    flagged: currentFolder === 'Flagged',
+    locked: false,
+    unlocked: false,
+    tags: [],
+    color: null,
+    deleted: false,
+    attachments: []
+  };
+  db.notes.unshift(note);
+  save();
+  openNote(note.id);
+}
+
+// =============================================
+// SAVING
+// =============================================
+function debounceSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveCurrentNote, 800);
+}
+
+function saveCurrentNote() {
+  if (!currentNoteId) return;
+  const note = db.notes.find(n=>n.id===currentNoteId);
+  if (!note) return;
+  const editor = document.getElementById('note-editor');
+  note.content = editor.innerHTML;
+  note.plainText = editor.innerText;
+  // Extract title from first line
+  const firstLine = editor.innerText.split('\n')[0].trim();
+  note.title = firstLine || 'New Note';
+  note.modified = Date.now();
+  // Extract tags from content
+  const tagMatches = note.plainText.match(/#(\w+)/g);
+  if (tagMatches) {
+    const newTags = tagMatches.map(t=>t.slice(1));
+    newTags.forEach(t => { if (!db.tags.includes(t)) db.tags.push(t); });
+    note.tags = [...new Set(newTags)];
+  }
+  save();
+}
+
+function saveAndGoBack() {
+  clearTimeout(saveTimer);
+  saveCurrentNote();
+  if (document.getElementById('note-editor').innerText.trim() === '') {
+    // Delete empty note
+    db.notes = db.notes.filter(n=>n.id!==currentNoteId);
+    save();
+  }
+  const note = db.notes.find(n=>n.id===currentNoteId);
+  if (note) note.unlocked = false; // Re-lock on close
+  goBack('editor-view');
+  renderFolders();
+  renderNotesList();
+}
+
+// =============================================
+// SWIPE ACTIONS
+// =============================================
+function addSwipeListeners(container) {
+  const items = container.querySelectorAll('.note-item');
+  items.forEach(item => {
+    let startX, startY, moved = false, swiped = false;
+    item.addEventListener('touchstart', e => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      moved = false; swiped = false;
+    }, {passive:true});
+    item.addEventListener('touchmove', e => {
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) {
+        moved = true;
+        if (dx < -30) {
+          item.style.transform = `translateX(${Math.max(dx, -144)}px)`;
+        }
+      }
+    }, {passive:true});
+    item.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - startX;
+      if (moved && dx < -80) {
+        // Show delete option
+        showSwipeDelete(item);
+      } else {
+        item.style.transform = '';
+      }
+    });
+  });
+}
+
+function showSwipeDelete(item) {
+  item.style.transition = 'transform 0.2s';
+  item.style.transform = 'translateX(-144px)';
+  // Create action buttons overlay
+  let actions = item.nextElementSibling;
+  if (!actions || !actions.classList.contains('swipe-actions-row')) {
+    actions = document.createElement('div');
+    actions.className = 'swipe-actions-row';
+    actions.style.cssText = 'position:absolute;right:0;top:0;bottom:0;display:flex;pointer-events:all;z-index:10';
+    const noteId = item.dataset.id;
+    const note = db.notes.find(n=>n.id===noteId);
+    actions.innerHTML = `
+      <div class="swipe-action swipe-pin" onclick="quickPinNote('${noteId}',this)" style="background:var(--orange)">${note&&note.pinned?'Unpin':'Pin'}</div>
+      <div class="swipe-action swipe-delete" onclick="quickDeleteNote('${noteId}',this)">Delete</div>
+    `;
+    item.style.position = 'relative';
+    item.parentElement.style.position = 'relative';
+    item.parentElement.insertBefore(actions, item.nextSibling);
+    // Dismiss on outside tap
+    document.addEventListener('touchstart', () => {
+      item.style.transform = '';
+      if (actions.parentElement) actions.parentElement.removeChild(actions);
+    }, {once:true, passive:true});
+  }
+}
+
+function quickPinNote(id, el) {
+  const note = db.notes.find(n=>n.id===id);
+  if (note) { note.pinned = !note.pinned; save(); }
+  renderNotesList();
+  showToast(note.pinned ? 'Note pinned' : 'Note unpinned');
+}
+
+function quickDeleteNote(id, el) {
+  const note = db.notes.find(n=>n.id===id);
+  if (!note) return;
+  if (note.deleted) {
+    db.notes = db.notes.filter(n=>n.id!==id);
+  } else {
+    note.deleted = true;
+  }
+  save(); renderNotesList(); renderFolders();
+  showToast('Note deleted');
+}
+
+// =============================================
+// EDITOR COMMANDS
+// =============================================
+function execFmt(cmd, val) {
+  document.getElementById('note-editor').focus();
+  document.execCommand(cmd, false, val || null);
+  debounceSave();
+}
+
+function setHeading(tag) {
+  if (tag === 'blockquote') {
+    execFmt('formatBlock', 'blockquote');
+  } else {
+    execFmt('formatBlock', tag);
+  }
+  toggleFormatPanel();
+}
+
+function insertChecklist() {
+  const editor = document.getElementById('note-editor');
+  editor.focus();
+  const div = document.createElement('div');
+  div.className = 'checklist-item';
+  div.innerHTML = `<input type="checkbox" onchange="toggleChecklistItem(this)"><div class="item-text" contenteditable="true" placeholder="List item"></div>`;
+  const sel = window.getSelection();
+  if (sel.rangeCount) {
+    const range = sel.getRangeAt(0);
+    range.collapse(false);
+    range.insertNode(div);
+    // Move cursor into the text div
+    const textDiv = div.querySelector('.item-text');
+    const r = document.createRange();
+    r.setStart(textDiv, 0);
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  } else {
+    editor.appendChild(div);
+  }
+  debounceSave();
+}
+
+function toggleChecklistItem(cb) {
+  const item = cb.closest('.checklist-item');
+  if (item) item.classList.toggle('done', cb.checked);
+  debounceSave();
+}
+
+function insertTable() {
+  execFmt('insertHTML', `<table><thead><tr><th>Column 1</th><th>Column 2</th><th>Column 3</th></tr></thead><tbody><tr><td>Cell</td><td>Cell</td><td>Cell</td></tr><tr><td>Cell</td><td>Cell</td><td>Cell</td></tr></tbody></table><p></p>`);
+}
+
+function toggleFormatPanel() {
+  formatPanelOpen = !formatPanelOpen;
+  document.getElementById('format-panel').style.display = formatPanelOpen ? 'block' : 'none';
+}
+
+function toggleKeyboard() {
+  document.getElementById('note-editor').blur();
+}
+
+function updateWordCount() {
+  const el = document.getElementById('note-editor');
+  const text = el.innerText.trim();
+  const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+  const chars = text.length;
+  document.getElementById('word-count-label').textContent = words ? `${words} words · ${chars} characters` : '';
+}
+
+// =============================================
+// PASTE HANDLER
+// =============================================
+function handlePaste(e) {
+  e.preventDefault();
+  const text = e.clipboardData.getData('text/plain');
+  document.execCommand('insertText', false, text);
+}
+
+// =============================================
+// NOTE OPTIONS
+// =============================================
+function openNoteOptions() {
+  if (!currentNoteId) return;
+  const note = db.notes.find(n=>n.id===currentNoteId);
+  if (!note) return;
+  const actionsEl = document.getElementById('note-options-actions');
+  document.getElementById('note-options-title').textContent = note.title || 'Note Options';
+  actionsEl.innerHTML = `
+    <div class="modal-action" onclick="pinNote('${note.id}');closeModal('note-options-modal')">
+      <div class="action-icon" style="background:var(--orange)">${note.pinned?pinSVG():pinSVG()}</div>
+      <span>${note.pinned ? 'Unpin' : 'Pin Note'}</span>
+    </div>
+    <div class="modal-action" onclick="flagNote('${note.id}');closeModal('note-options-modal')">
+      <div class="action-icon" style="background:var(--orange)"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="16" height="16"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></div>
+      <span>${note.flagged ? 'Unflag' : 'Flag Note'}</span>
+    </div>
+    <div class="modal-action" onclick="openColorPicker();closeModal('note-options-modal')">
+      <div class="action-icon" style="background:var(--purple)"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="16" height="16"><circle cx="13.5" cy="6.5" r=".5" fill="white"/><circle cx="17.5" cy="10.5" r=".5" fill="white"/><circle cx="8.5" cy="7.5" r=".5" fill="white"/><circle cx="6.5" cy="12.5" r=".5" fill="white"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg></div>
+      <span>Note Color</span>
+    </div>
+    <div class="modal-action" onclick="openFolderPicker();closeModal('note-options-modal')">
+      <div class="action-icon" style="background:var(--blue)"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+      <span>Move to Folder</span>
+    </div>
+    <div class="modal-action" onclick="toggleLockNote('${note.id}');closeModal('note-options-modal')">
+      <div class="action-icon" style="background:var(--indigo)">${note.locked?unlockSVG():lockSVG()}</div>
+      <span>${note.locked ? 'Remove Lock' : 'Lock Note'}</span>
+    </div>
+    <div class="modal-action" onclick="openTagModal();closeModal('note-options-modal')">
+      <div class="action-icon" style="background:var(--teal)"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="16" height="16"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
+      <span>Add Tag</span>
+    </div>
+    <div class="modal-action destructive" onclick="deleteNote('${note.id}');closeModal('note-options-modal')">
+      <div class="action-icon" style="background:var(--red)"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></div>
+      <span>Delete Note</span>
+    </div>
+  `;
+  openModal('note-options-modal');
+}
+
+function lockSVG() { return `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="16" height="16"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`; }
+function unlockSVG() { return `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="16" height="16"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`; }
+function pinSVG() { return `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="16" height="16"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>`; }
+
+function pinNote(id) {
+  const note = db.notes.find(n=>n.id===id);
+  if (note) { note.pinned = !note.pinned; save(); renderNotesList(); renderFolders(); showToast(note.pinned?'Pinned':'Unpinned'); }
+}
+function flagNote(id) {
+  const note = db.notes.find(n=>n.id===id);
+  if (note) { note.flagged = !note.flagged; save(); renderNotesList(); renderFolders(); showToast(note.flagged?'Flagged':'Unflagged'); }
+}
+function deleteNote(id) {
+  const note = db.notes.find(n=>n.id===id);
+  if (note) {
+    if (note.deleted) { db.notes = db.notes.filter(n=>n.id!==id); }
+    else { note.deleted = true; }
+    save(); saveAndGoBack();
+    showToast('Note deleted');
+  }
+}
+function toggleLockNote(id) {
+  const note = db.notes.find(n=>n.id===id);
+  if (!note) return;
+  if (!db.settings.password && !note.locked) {
+    showAlert('Set Password First', 'Set a password in Settings to lock notes.', [{label:'OK', action: ()=>{}}]);
+    return;
+  }
+  note.locked = !note.locked;
+  note.unlocked = false;
+  save(); showToast(note.locked ? 'Note locked' : 'Note unlocked');
+  if (note.locked) { document.getElementById('locked-overlay').style.display = 'flex'; }
+}
+
+function unlockCurrentNote() {
+  const note = db.notes.find(n=>n.id===currentNoteId);
+  if (!note) return;
+  if (!db.settings.password) { note.unlocked = true; document.getElementById('locked-overlay').style.display = 'none'; document.getElementById('note-editor').innerHTML = note.content || ''; return; }
+  showPinUnlock(note);
+}
+
+function showPinUnlock(note) {
+  let entered = '';
+  const overlay = document.createElement('div');
+  overlay.className = 'lock-screen';
+  overlay.innerHTML = `
+    <div class="lock-icon">🔒</div>
+    <div class="lock-title">Enter Password</div>
+    <div class="lock-pin-row" id="pin-dots">
+      ${[0,1,2,3].map(()=>'<div class="lock-dot"></div>').join('')}
+    </div>
+    <div class="lock-numpad">
+      ${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(n=>`<button class="num-btn ${n==='⌫'?'delete':''}" onclick="pinInput('${n}')">${n}</button>`).join('')}
+    </div>
+    <button onclick="cancelPinUnlock()" style="background:none;border:none;color:var(--blue);font-size:17px;cursor:pointer;margin-top:8px;padding:8px 24px">Cancel</button>
+  `;
+  overlay.id = 'pin-unlock-screen';
+  document.getElementById('app').appendChild(overlay);
+  window._pinTarget = note;
+  window._pinEntered = '';
+  window.pinInput = (val) => {
+    if (val === '⌫') { window._pinEntered = window._pinEntered.slice(0,-1); }
+    else if (val !== '') { window._pinEntered += val; }
+    const dots = document.querySelectorAll('#pin-dots .lock-dot');
+    dots.forEach((d,i) => d.classList.toggle('filled', i < window._pinEntered.length));
+    if (window._pinEntered.length === 4) {
+      if (window._pinEntered === db.settings.password) {
+        document.getElementById('pin-unlock-screen').remove();
+        window._pinTarget.unlocked = true;
+        document.getElementById('locked-overlay').style.display = 'none';
+        document.getElementById('note-editor').innerHTML = window._pinTarget.content || '';
+      } else {
+        showToast('Wrong password');
+        window._pinEntered = '';
+        document.querySelectorAll('#pin-dots .lock-dot').forEach(d=>d.classList.remove('filled'));
+      }
+    }
+  };
+  window.cancelPinUnlock = () => { document.getElementById('pin-unlock-screen')?.remove(); };
+}
+
+// =============================================
+// COLOR PICKER
+// =============================================
+const NOTE_COLORS = [
+  {color: null, label: 'None'},
+  {color: '#FFD60A', label: 'Yellow'},
+  {color: '#FF9500', label: 'Orange'},
+  {color: '#FF3B30', label: 'Red'},
+  {color: '#FF2D55', label: 'Pink'},
+  {color: '#AF52DE', label: 'Purple'},
+  {color: '#007AFF', label: 'Blue'},
+  {color: '#5AC8FA', label: 'Sky'},
+  {color: '#34C759', label: 'Green'},
+  {color: '#8E8E93', label: 'Gray'},
+];
+
+function openColorPicker() {
+  const note = db.notes.find(n=>n.id===currentNoteId);
+  const row = document.getElementById('color-picker-row');
+  row.innerHTML = NOTE_COLORS.map(c => `
+    <div class="color-dot ${note&&note.color===c.color?'selected':''}" style="background:${c.color||'var(--card2)'};border:${c.color?'':'1.5px solid var(--separator)'}" onclick="setNoteColor(${c.color?`'${c.color}'`:null})">
+      ${note&&note.color===c.color?`<svg viewBox="0 0 24 24" fill="none" stroke="${c.color?'#fff':'var(--text-primary)'}" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`:''}
+    </div>
+  `).join('');
+  openModal('color-modal');
+}
+
+function setNoteColor(color) {
+  const note = db.notes.find(n=>n.id===currentNoteId);
+  if (note) { note.color = color; save(); }
+  closeModal('color-modal');
+}
+
+// =============================================
+// FOLDER PICKER
+// =============================================
+function openFolderPicker() {
+  const list = document.getElementById('folder-pick-list');
+  const folders = ['Notes', ...db.customFolders];
+  list.innerHTML = folders.map(f => `
+    <div class="modal-action" onclick="moveNoteTo('${f}')">
+      <div class="action-icon" style="background:#5856D6"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+      <span>${f}</span>
+    </div>
+  `).join('');
+  openModal('folder-pick-modal');
+}
+
+function moveNoteTo(folder) {
+  const note = db.notes.find(n=>n.id===currentNoteId);
+  if (note) { note.folder = folder; save(); showToast(`Moved to ${folder}`); }
+  closeModal('folder-pick-modal');
+}
+
+// =============================================
+// SEARCH
+// =============================================
+function noteMatchesSearch(note, q) {
+  if (!q) return true;
+  const lq = q.toLowerCase();
+  return (note.title||'').toLowerCase().includes(lq) || (note.plainText||'').toLowerCase().includes(lq);
+}
+
+function handleGlobalSearch(q) {
+  const resultsSection = document.getElementById('search-results-section');
+  const foldersContent = document.getElementById('folders-content');
+  if (!q.trim()) {
+    resultsSection.style.display = 'none';
+    foldersContent.style.display = '';
+    return;
+  }
+  resultsSection.style.display = '';
+  foldersContent.style.display = 'none';
+  const results = db.notes.filter(n => !n.deleted && noteMatchesSearch(n, q));
+  const list = document.getElementById('search-results-list');
+  if (!results.length) { list.innerHTML = '<div class="empty-state"><p>No results found</p></div>'; return; }
+  list.innerHTML = results.map(n=>buildNoteItem(n,true)).join('');
+}
+
+function handleNotesSearch(q) { renderNotesList(q); }
+
+function searchFocused() {
+  document.getElementById('search-cancel-btn').style.display = 'block';
+}
+function searchBlurred() {
+  setTimeout(()=>{
+    if (document.getElementById('global-search-input').value) return;
+    document.getElementById('search-cancel-btn').style.display = 'none';
+  }, 150);
+}
+function cancelSearch() {
+  document.getElementById('global-search-input').value = '';
+  handleGlobalSearch('');
+  document.getElementById('search-cancel-btn').style.display = 'none';
+  document.getElementById('global-search-input').blur();
+}
+
+// =============================================
+// SHARE
+// =============================================
+function shareNote() {
+  if (!currentNoteId) return;
+  const note = db.notes.find(n=>n.id===currentNoteId);
+  if (!note) return;
+  if (navigator.share) {
+    navigator.share({ title: note.title, text: note.plainText }).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(note.plainText).then(()=>showToast('Copied to clipboard')).catch(()=>showToast('Share not supported'));
+  }
+}
+
+// =============================================
+// SORT
+// =============================================
+function toggleSortMenu() {
+  const m = document.getElementById('sort-menu');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+
+function setSortMode(mode) {
+  db.settings.sortMode = mode;
+  ['date-edit','date-create','title'].forEach(m => {
+    const el = document.getElementById('sort-'+m);
+    if (el) el.className = 'sort-option' + (m===mode?' active':'');
+  });
+  const sel = document.getElementById('sort-select');
+  if (sel) sel.value = mode;
+  save();
+  document.getElementById('sort-menu').style.display = 'none';
+  renderNotesList();
+}
+
+// =============================================
+// MODALS / ALERTS
+// =============================================
+function openModal(id) {
+  const el = document.getElementById(id);
+  el.classList.add('visible');
+  el.addEventListener('click', e => { if (e.target === el) closeModal(id); }, {once:true});
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('visible');
+}
+
+function showAlert(title, message, buttons) {
+  document.getElementById('alert-title').textContent = title;
+  document.getElementById('alert-message').textContent = message;
+  const actions = document.getElementById('alert-actions');
+  actions.innerHTML = buttons.map(b => `<button class="alert-btn ${b.destructive?'destructive':''}" onclick="(${b.action.toString()})();document.getElementById('alert-overlay').classList.remove('visible')">${b.label}</button>`).join('');
+  document.getElementById('alert-overlay').classList.add('visible');
+}
+
+// =============================================
+// FOLDER CREATION
+// =============================================
+function openNewFolderModal() { document.getElementById('new-folder-input').value = ''; openModal('new-folder-modal'); setTimeout(()=>document.getElementById('new-folder-input').focus(),300); }
+function confirmNewFolder() {
+  const name = document.getElementById('new-folder-input').value.trim();
+  if (!name) return;
+  if (!db.customFolders.includes(name)) { db.customFolders.push(name); save(); renderFolders(); }
+  closeModal('new-folder-modal');
+}
+
+// =============================================
+// TAG MANAGEMENT
+// =============================================
+function openTagModal() { document.getElementById('tag-input').value = ''; openModal('tag-modal'); setTimeout(()=>document.getElementById('tag-input').focus(),300); }
+function confirmAddTag() {
+  const tag = document.getElementById('tag-input').value.trim().toLowerCase();
+  if (!tag) return;
+  if (!db.tags.includes(tag)) { db.tags.push(tag); }
+  // Add to current note
+  const note = db.notes.find(n=>n.id===currentNoteId);
+  if (note) { if (!note.tags) note.tags=[]; if (!note.tags.includes(tag)) note.tags.push(tag); save(); }
+  renderTags();
+  closeModal('tag-modal');
+  showToast(`Tag #${tag} added`);
+}
+
+// =============================================
+// ATTACHMENTS
+// =============================================
+function openAttachPicker() { document.getElementById('file-input').click(); }
+function handleFileAttach(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const editor = document.getElementById('note-editor');
+    editor.focus();
+    const img = document.createElement('img');
+    img.src = ev.target.result;
+    img.style.cssText = 'max-width:100%;border-radius:8px;margin:8px 0;display:block';
+    const sel = window.getSelection();
+    if (sel.rangeCount) {
+      const range = sel.getRangeAt(0);
+      range.collapse(false);
+      range.insertNode(img);
+      range.collapse(false);
+    } else {
+      editor.appendChild(img);
+    }
+    debounceSave();
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+// =============================================
+// SETTINGS
+// =============================================
+function openSettings() { showView('settings-view'); }
+function toggleSetting(key) {
+  if (key === 'group') {
+    db.settings.groupByDate = !db.settings.groupByDate;
+    document.getElementById('group-toggle').classList.toggle('on', db.settings.groupByDate);
+  } else if (key === 'preview') {
+    db.settings.showPreview = !db.settings.showPreview;
+    document.getElementById('preview-toggle').classList.toggle('on', db.settings.showPreview);
+  }
+  save();
+}
+function changeFontSetting(val) { db.settings.font = val; save(); }
+
+function openSetPassword() {
+  let entered = '';
+  let confirmMode = false;
+  let firstPin = '';
+  const overlay = document.createElement('div');
+  overlay.className = 'lock-screen';
+  overlay.id = 'set-pin-screen';
+  overlay.innerHTML = `
+    <div class="lock-title" id="set-pin-title">${db.settings.password ? 'Enter Current Password' : 'Set New Password'}</div>
+    <div class="lock-pin-row" id="set-pin-dots">
+      ${[0,1,2,3].map(()=>'<div class="lock-dot"></div>').join('')}
+    </div>
+    <div class="lock-numpad">
+      ${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(n=>`<button class="num-btn" onclick="setPinInput('${n}')">${n}</button>`).join('')}
+    </div>
+    <button onclick="document.getElementById('set-pin-screen').remove()" style="background:none;border:none;color:var(--blue);font-size:17px;cursor:pointer;margin-top:8px;padding:8px 24px">Cancel</button>
+  `;
+  document.getElementById('app').appendChild(overlay);
+  let phase = db.settings.password ? 'verify' : 'new1';
+  window._pinEntered2 = '';
+  window.setPinInput = val => {
+    if (val === '⌫') { window._pinEntered2 = window._pinEntered2.slice(0,-1); }
+    else if (val !== '') { window._pinEntered2 += val; }
+    document.querySelectorAll('#set-pin-dots .lock-dot').forEach((d,i)=>d.classList.toggle('filled',i<window._pinEntered2.length));
+    if (window._pinEntered2.length === 4) {
+      if (phase === 'verify') {
+        if (window._pinEntered2 !== db.settings.password) { showToast('Wrong password'); window._pinEntered2=''; document.querySelectorAll('#set-pin-dots .lock-dot').forEach(d=>d.classList.remove('filled')); return; }
+        phase = 'new1'; window._pinEntered2=''; document.getElementById('set-pin-title').textContent='Set New Password'; document.querySelectorAll('#set-pin-dots .lock-dot').forEach(d=>d.classList.remove('filled'));
+      } else if (phase === 'new1') {
+        firstPin = window._pinEntered2; phase='new2'; window._pinEntered2='';
+        document.getElementById('set-pin-title').textContent='Confirm Password';
+        document.querySelectorAll('#set-pin-dots .lock-dot').forEach(d=>d.classList.remove('filled'));
+      } else if (phase === 'new2') {
+        if (window._pinEntered2 !== firstPin) { showToast('Passwords do not match'); window._pinEntered2=''; phase='new1'; document.getElementById('set-pin-title').textContent='Set New Password'; document.querySelectorAll('#set-pin-dots .lock-dot').forEach(d=>d.classList.remove('filled')); return; }
+        db.settings.password = firstPin; save(); document.getElementById('set-pin-screen').remove(); showToast('Password set!');
+      }
+    }
+  };
+}
+
+function confirmDeleteAll() {
+  showAlert('Delete All Notes', 'This will permanently delete all notes and cannot be undone.', [
+    { label: 'Cancel', action: ()=>{} },
+    { label: 'Delete All', destructive: true, action: ()=>{ db.notes=[]; save(); renderFolders(); showToast('All notes deleted'); } }
+  ]);
+}
+
+// =============================================
+// TOAST
+// =============================================
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+// =============================================
+// CLOSE MENUS ON OUTSIDE CLICK
+// =============================================
+document.addEventListener('click', e => {
+  const sortMenu = document.getElementById('sort-menu');
+  if (sortMenu && !sortMenu.contains(e.target) && !document.getElementById('sort-btn').contains(e.target)) {
+    sortMenu.style.display = 'none';
+  }
+});
+
+// =============================================
+// INIT
+// =============================================
+function init() {
+  load();
+  // Seed sample notes if empty
+  if (!db.notes.length) {
+    const sampleNotes = [
+      { id: '1', title: 'Welcome to Notes', content: '<h1>Welcome to Notes</h1><p>This is your personal notes app. You can:</p><ul><li>Create and edit notes</li><li>Organize with folders and tags</li><li>Pin important notes</li><li>Lock private notes</li><li>Add checklists and tables</li></ul>', plainText: 'Welcome to Notes\nThis is your personal notes app.', folder: 'Notes', created: Date.now()-86400000*3, modified: Date.now()-86400000*3, pinned: true, flagged: false, locked: false, unlocked: false, tags: ['welcome'], color: '#FFD60A', deleted: false, attachments: [] },
+      { id: '2', title: 'Shopping List', content: '<h1>Shopping List</h1><div class="checklist-item"><input type="checkbox" onchange="toggleChecklistItem(this)"><div class="item-text" contenteditable="true">Apples</div></div><div class="checklist-item done"><input type="checkbox" checked onchange="toggleChecklistItem(this)"><div class="item-text" contenteditable="true">Milk</div></div><div class="checklist-item"><input type="checkbox" onchange="toggleChecklistItem(this)"><div class="item-text" contenteditable="true">Bread</div></div>', plainText: 'Shopping List\nApples\nMilk\nBread', folder: 'Notes', created: Date.now()-86400000, modified: Date.now()-3600000, pinned: false, flagged: false, locked: false, unlocked: false, tags: ['shopping'], color: null, deleted: false, attachments: [] },
+      { id: '3', title: 'Meeting Notes', content: '<h1>Meeting Notes</h1><h2>Q1 Review</h2><p>Key points discussed:</p><ol><li>Revenue targets met</li><li>New product roadmap approved</li><li>Team expansion planned for Q2</li></ol><blockquote>Move fast and ship things.</blockquote>', plainText: 'Meeting Notes\nQ1 Review', folder: 'Notes', created: Date.now()-86400000*7, modified: Date.now()-86400000*2, pinned: false, flagged: true, locked: false, unlocked: false, tags: ['work','meeting'], color: '#007AFF', deleted: false, attachments: [] },
+    ];
+    db.notes = sampleNotes;
+    db.tags = ['welcome','shopping','work','meeting'];
+    save();
+  }
+  renderFolders();
+  // Settings init
+  document.getElementById('group-toggle').classList.toggle('on', db.settings.groupByDate);
+  document.getElementById('preview-toggle').classList.toggle('on', db.settings.showPreview);
+  // Keyboard handling
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay.visible').forEach(m=>m.classList.remove('visible'));
+      document.querySelectorAll('.alert-overlay.visible').forEach(a=>a.classList.remove('visible'));
+    }
+  });
+}
+
+init();
+</script>
+</body>
+</html>
